@@ -9,6 +9,8 @@
     "**/*.exe": true
   },
   "files.associations": {
-    "string": "c"
-  }
+    "string": "c",
+    "*.m": "c"
+  },
+  "cSpell.words": ["MARGINX"]
 }
