@@ -74,6 +74,10 @@ int main()
     InitWindow(width, height, "Typing Tutor - by Hamza");
     SetTargetFPS(60);
 
+    InitAudioDevice();
+    Music intro_music = LoadMusicStream("resources/welcome.wav");
+    PlayMusicStream(intro_music);
+
     int current_layer = MENU_LAYER;
 
     Font ibm_font_title = LoadFontEx("resources/IBM-font.ttf", 36, 0, 256);
@@ -172,6 +176,11 @@ int main()
 
     while (!WindowShouldClose())
     {
+        if (GetMusicTimePlayed(intro_music) < GetMusicTimeLength(intro_music) - 0.1)
+            UpdateMusicStream(intro_music);
+        else
+            StopMusicStream(intro_music);
+
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
@@ -362,9 +371,10 @@ int main()
                 save_user_data(current_user, lesson_number_string, accuracy, words_per_minute);
             }
         }
-
         EndDrawing();
     }
+    UnloadMusicStream(intro_music);
+    CloseAudioDevice();
     UnloadTexture(keyboard);
     CloseWindow();
     return 0;
