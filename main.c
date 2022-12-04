@@ -77,6 +77,8 @@ int main()
     InitAudioDevice();
     Music intro_music = LoadMusicStream("resources/welcome.wav");
     PlayMusicStream(intro_music);
+    Sound error_effect = LoadSound("resources/error.mp3");
+    Sound congrats = LoadSound("resources/congrats.mp3");
 
     int current_layer = MENU_LAYER;
 
@@ -165,6 +167,7 @@ int main()
 
     Color letter_color;
     int is_lesson_completed = 0;
+    int is_trainer_completed = 0;
     int start_time = 0, end_time = 0;
     int is_time_started = 0;
 
@@ -176,7 +179,7 @@ int main()
 
     while (!WindowShouldClose())
     {
-        if (GetMusicTimePlayed(intro_music) < GetMusicTimeLength(intro_music) - 0.1)
+        if (GetMusicTimePlayed(intro_music) < GetMusicTimeLength(intro_music) - 0.1 && current_layer != TYPING_LAYER)
             UpdateMusicStream(intro_music);
         else
             StopMusicStream(intro_music);
@@ -272,7 +275,7 @@ int main()
             DrawRectangle(text_box.x + 8 + current_letter_number * single_character_width, text_box.y + text_box.height / 2 + single_character_height / 2, single_character_width, 4, DARKGREEN);
 
             // Waiting for user inputs
-            if ((key = GetCharPressed()) != 0 && !is_lesson_completed)
+            if ((key = GetCharPressed()) != 0 && !is_lesson_completed && !is_trainer_completed)
             {
                 // Start the time
                 if (!is_time_started)
@@ -290,6 +293,7 @@ int main()
                 }
                 else
                 {
+                    PlaySound(error_effect);
                     letters_state[current_letter_number].is_wrong = 1;
                     incorrect_keystrokes += 1;
                 }
@@ -299,6 +303,7 @@ int main()
                 // If lesson is completed
                 if (lesson_text[current_line_number][current_letter_number] == '\0' && current_letter_number < LESSON_LINE_LENGTH - 1)
                 {
+                    PlaySound(congrats);
                     is_lesson_completed = 1;
                     is_time_started = 0;
                     end_time = time(NULL);
@@ -315,7 +320,7 @@ int main()
             }
 
             // When next button is clicked
-            if ((CheckCollisionPointRec(GetMousePosition(), next_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || (is_lesson_completed && IsKeyPressed(KEY_ENTER)))
+            if ((CheckCollisionPointRec(GetMousePosition(), next_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || (is_lesson_completed && !is_trainer_completed && IsKeyPressed(KEY_ENTER)))
             {
                 correct_keystrokes = 0;
                 total_keystrokes = 0;
@@ -326,9 +331,18 @@ int main()
                 current_letter_number = 0;
                 current_line_number = 0;
 
-                if (current_lesson == TOTAL_LESSONS - 1)
+                if (current_lesson >= TOTAL_LESSONS - 1)
+                    is_trainer_completed = 1;
+                if (is_trainer_completed)
                 {
-                    // TODO: Add completion code here
+                    DrawRectangle(0, 0, width, height, PURPLE);
+                    DrawText("Congratulations! You completed your training.", width / 2 - single_character_width * 23, height / 2 - single_character_height / 2, 32, WHITE);
+
+                    current_lesson = 0;
+                    reset_lesson_name(lesson_name);
+                    strcat(lesson_name, lessons[current_lesson]);
+                    load_lesson(lesson_name, lesson_text);
+                    reset_validations(letters_state, strlen(lesson_text[current_line_number]));
                 }
                 else
                 {
@@ -366,7 +380,8 @@ int main()
 
                 // Save user data to a file
                 char lesson_number_string[10];
-                sprintf(lesson_number_string, "%d", current_lesson + 1);
+
+                sprintf(lesson_number_string, "%d", is_trainer_completed ? 0 : current_lesson + 1);
 
                 save_user_data(current_user, lesson_number_string, accuracy, words_per_minute);
             }
@@ -374,6 +389,8 @@ int main()
         EndDrawing();
     }
     UnloadMusicStream(intro_music);
+    UnloadSound(error_effect);
+    UnloadSound(congrats);
     CloseAudioDevice();
     UnloadTexture(keyboard);
     CloseWindow();
