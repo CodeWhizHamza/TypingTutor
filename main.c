@@ -35,6 +35,7 @@ void get_lesson_names(char (*lessons)[LESSON_NAME_LENGTH]);
 void sort_lessons(char (*lessons)[LESSON_NAME_LENGTH]);
 int extract_lesson_number(char *lesson);
 void reset_validations(letter_state *v, int length);
+void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH]);
 
 // ------------------------- //
 // Local Variables
@@ -73,19 +74,10 @@ int main()
     // int current_lesson = 50;
     char lesson_name[40] = "lessons/";
     strcat(lesson_name, lessons[0]);
-    FILE *lesson;
-    lesson = fopen(lesson_name, "r");
-
     char lesson_text[LESSON_LINES_COUNT][LESSON_LINE_LENGTH] = {0};
-    int i = 0;
-    do
-    {
-        fgets(lesson_text[i], LESSON_LINE_LENGTH, lesson);
-        i += 1;
-    } while (!feof(lesson));
-    fclose(lesson);
-    // int end_time = time(NULL);
+    load_lesson(lesson_name, lesson_text);
 
+    // int end_time = time(NULL);
     // printf("\nCorrect: %d\nIncorrect: %d\nTotal keystrokes: %d\n", correct_keystrokes, incorrect_keystrokes, total_keystrokes);
     // printf("Accuracy: %.2f\n", get_accuracy(correct_keystrokes, total_keystrokes));
     // printf("WPM: %d\n", get_wpm(correct_keystrokes + incorrect_keystrokes, end_time - start_time));
@@ -102,16 +94,20 @@ int main()
     letter_state letters_state[lesson_text_length];
     reset_validations(letters_state, lesson_text_length);
     Color letter_color;
+    int is_lesson_completed = 0;
 
     while (!WindowShouldClose())
     {
         BeginDrawing();
 
         ClearBackground(RAYWHITE);
+
+        // Print the title
         DrawTextEx(ibm_font_title, title, title_position, 36, 1, BLACK);
 
         DrawRectangleRounded(text_box, 0.05, 1000, WHITE);
 
+        // training text
         for (int letter = 0; letter < strlen(lesson_text[current_line_number]); letter++)
         {
             if (letters_state[letter].is_correct)
@@ -127,9 +123,11 @@ int main()
             DrawTextEx(ibm_font_text, temp_letter, (Vector2){text_box.x + MARGIN_X + letter * single_character_width, text_box_mid}, 32, 1, letter_color);
         }
 
+        // The cursor
         DrawRectangle(text_box.x + 8 + current_letter_number * single_character_width, text_box.y + text_box.height / 2 + single_character_height / 2, single_character_width, 4, DARKGREEN);
 
-        if ((key = GetCharPressed()) != 0)
+        // Waiting for user inputs
+        if ((key = GetCharPressed()) != 0 && !is_lesson_completed)
         {
             total_keystrokes += 1;
             if (key == lesson_text[current_line_number][current_letter_number])
@@ -144,6 +142,11 @@ int main()
             }
 
             current_letter_number += 1;
+
+            if (lesson_text[current_line_number][current_letter_number] == '\0' && current_letter_number < LESSON_LINE_LENGTH - 1)
+            {
+                is_lesson_completed = 1;
+            }
 
             if (current_letter_number >= LESSON_LINE_LENGTH - 1)
             {
@@ -227,4 +230,17 @@ void reset_validations(letter_state *v, int length)
         v[i].is_wrong = 0;
         v[i].is_correct = 0;
     }
+}
+void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH])
+{
+    FILE *lesson;
+    lesson = fopen(lesson_name, "r");
+
+    int i = 0;
+    do
+    {
+        fgets(lesson_text[i], LESSON_LINE_LENGTH, lesson);
+        i += 1;
+    } while (!feof(lesson));
+    fclose(lesson);
 }
