@@ -45,6 +45,7 @@ void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH]);
 void reset_lesson_name(char *lesson_name);
 char *strremove(char *str, const char *sub);
 void save_user_data(char *current_user, char *lesson_name, char *accuracy, char *words_per_minute);
+void load_current_lesson(char *filename, int *current_lesson);
 
 // ------------------------- //
 // Local Variables
@@ -111,7 +112,7 @@ int main()
     // Start Button
     Rectangle start_btn;
     start_btn.width = 108;
-    start_btn.height = 36;
+    start_btn.height = 48;
     start_btn.x = menu_box.x + margin_x;
     start_btn.y = menu_box.y + menu_box.height - start_btn.height - margin_x;
 
@@ -141,9 +142,9 @@ int main()
 
     int current_lesson = 0;
     char lesson_name[NAME_LENGTH * 2];
+    char lesson_text[LESSON_LINES_COUNT][LESSON_LINE_LENGTH] = {0};
     reset_lesson_name(lesson_name);
     strcat(lesson_name, lessons[current_lesson]);
-    char lesson_text[LESSON_LINES_COUNT][LESSON_LINE_LENGTH] = {0};
     load_lesson(lesson_name, lesson_text);
 
     int correct_keystrokes = 0;
@@ -214,11 +215,11 @@ int main()
                 DrawTextEx(ibm_font_text, users[2], (Vector2){user_box3.x + 8, user_box3.y + 12}, 32, 1, DARKGRAY);
             }
 
-            // Draw buttons
+            // Draw start button
             DrawRectangleRounded(start_btn, 0.1, 1000, DARKPURPLE);
-            DrawTextEx(ibm_font_text, "Start", (Vector2){start_btn.x + 8, start_btn.y + 2}, 32, 1, WHITE);
+            DrawTextEx(ibm_font_text, "Start", (Vector2){start_btn.x + 8, start_btn.y + 8}, 32, 1, WHITE);
 
-            if (CheckCollisionPointRec(GetMousePosition(), start_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            if ((CheckCollisionPointRec(GetMousePosition(), start_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || IsKeyPressed(KEY_ENTER))
             {
                 int selected_user_index = 0;
                 for (int i = 0; i < MAX_USERS; i++)
@@ -229,6 +230,10 @@ int main()
                     }
                 current_layer = TYPING_LAYER;
                 strcpy(current_user, strcat(users[selected_user_index], ".txt"));
+                load_current_lesson(current_user, &current_lesson);
+                reset_lesson_name(lesson_name);
+                strcat(lesson_name, lessons[current_lesson]);
+                load_lesson(lesson_name, lesson_text);
             }
         }
 
@@ -350,7 +355,11 @@ int main()
                 sprintf(time_string, "Time: %ds", end_time - start_time);
                 DrawTextEx(ibm_font_text, time_string, (Vector2){stats_box.x + 16, line_position_y + 32 + single_character_height * 2}, 32, 1, DARKGRAY);
 
-                save_user_data(current_user, lesson_name, accuracy, words_per_minute);
+                // Save user data to a file
+                char lesson_number_string[10];
+                sprintf(lesson_number_string, "%d", current_lesson + 1);
+
+                save_user_data(current_user, lesson_number_string, accuracy, words_per_minute);
             }
         }
 
@@ -464,4 +473,29 @@ char *strremove(char *str, const char *sub)
         }
     }
     return str;
+}
+void save_user_data(char *current_user, char *lesson_name, char *accuracy, char *words_per_minute)
+{
+    char folder_name[] = "users/";
+    char filename[40];
+    strcpy(filename, strcat(folder_name, current_user));
+    FILE *file;
+    file = fopen(filename, "w");
+    fputs(lesson_name, file);
+    fputs("\n", file);
+    fputs(accuracy, file);
+    fputs("\n", file);
+    fputs(words_per_minute, file);
+    fputs("\n", file);
+    fclose(file);
+}
+void load_current_lesson(char *current_user, int *current_lesson)
+{
+    char folder_name[] = "users/";
+    char filename[40];
+    strcpy(filename, strcat(folder_name, current_user));
+    FILE *file;
+    file = fopen(filename, "r");
+    fscanf(file, "%d", current_lesson);
+    fclose(file);
 }
