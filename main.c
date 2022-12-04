@@ -25,6 +25,11 @@ typedef struct
     int is_correct;
     int is_wrong;
 } letter_state;
+enum APP_STATUS
+{
+    MENU_LAYER = 0,
+    TYPING_LAYER = 1,
+};
 
 // ------------------------- //
 // Function Prototypes
@@ -36,6 +41,7 @@ void sort_lessons(char (*lessons)[LESSON_NAME_LENGTH]);
 int extract_lesson_number(char *lesson);
 void reset_validations(letter_state *v, int length);
 void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH]);
+void reset_lesson_name(char *lesson_name);
 
 // ------------------------- //
 // Local Variables
@@ -54,6 +60,8 @@ int main()
     InitWindow(width, height, "Typing Tutor - by Hamza");
     SetTargetFPS(60);
 
+    int current_layer = MENU_LAYER;
+
     Font ibm_font_title = LoadFontEx("resources/IBM-font.ttf", 36, 0, 256);
     Font ibm_font_text = LoadFontEx("resources/IBM-font.ttf", 32, 0, 256);
     float single_character_width = MeasureTextEx(ibm_font_text, "D", 34.5, 1).x;
@@ -69,95 +77,180 @@ int main()
     text_box.height = 136;
     int text_box_mid = text_box.y + text_box.height / 2 - single_character_height / 2;
 
-    keyboard = LoadTexture("resources/keyboard.png");
+    // Next button
+    Rectangle next_btn;
+    next_btn.x = 16;
+    next_btn.y = 216;
+    next_btn.width = 196;
+    next_btn.height = 48;
 
-    // int current_lesson = 50;
-    char lesson_name[40] = "lessons/";
-    strcat(lesson_name, lessons[0]);
-    char lesson_text[LESSON_LINES_COUNT][LESSON_LINE_LENGTH] = {0};
-    load_lesson(lesson_name, lesson_text);
+    // Stats
+    Rectangle stats_box;
+    stats_box.x = 536;
+    stats_box.y = 216;
+    stats_box.width = 312;
+    stats_box.height = 316;
+
+    keyboard = LoadTexture("resources/keyboard.png");
 
     // int end_time = time(NULL);
     // printf("\nCorrect: %d\nIncorrect: %d\nTotal keystrokes: %d\n", correct_keystrokes, incorrect_keystrokes, total_keystrokes);
     // printf("Accuracy: %.2f\n", get_accuracy(correct_keystrokes, total_keystrokes));
     // printf("WPM: %d\n", get_wpm(correct_keystrokes + incorrect_keystrokes, end_time - start_time));
 
-    // char current_character;
+    int current_lesson = 0;
+    char lesson_name[LESSON_NAME_LENGTH * 2];
+    reset_lesson_name(lesson_name);
+    strcat(lesson_name, lessons[current_lesson]);
+    char lesson_text[LESSON_LINES_COUNT][LESSON_LINE_LENGTH] = {0};
+    load_lesson(lesson_name, lesson_text);
+
     int correct_keystrokes = 0;
     int incorrect_keystrokes = 0;
     int total_keystrokes = 0;
-    // int start_time = time(NULL);
+
     char key;
     int current_letter_number = 0;
     int current_line_number = 0;
     int lesson_text_length = strlen(lesson_text[current_line_number]);
+
     letter_state letters_state[lesson_text_length];
     reset_validations(letters_state, lesson_text_length);
+
     Color letter_color;
     int is_lesson_completed = 0;
+    int start_time = 0, end_time = 0;
+    int is_time_started = 0;
+
+    char words_per_minute[50] = {0};
+    char accuracy[50] = {0};
+    char time_string[50] = {0};
 
     while (!WindowShouldClose())
     {
         BeginDrawing();
-
         ClearBackground(RAYWHITE);
 
-        // Print the title
-        DrawTextEx(ibm_font_title, title, title_position, 36, 1, BLACK);
+        if (current_layer == TYPING_LAYER)
+        { // Print the title
+            DrawTextEx(ibm_font_title, title, title_position, 36, 1, BLACK);
 
-        DrawRectangleRounded(text_box, 0.05, 1000, WHITE);
+            DrawRectangleRounded(text_box, 0.05, 1000, WHITE);
 
-        // training text
-        for (int letter = 0; letter < strlen(lesson_text[current_line_number]); letter++)
-        {
-            if (letters_state[letter].is_correct)
-                letter_color = GREEN;
-            else if (letters_state[letter].is_wrong)
-                letter_color = RED;
-            else
-                letter_color = DARKGRAY;
-
-            char temp_letter[2];
-            temp_letter[0] = lesson_text[current_line_number][letter];
-            temp_letter[1] = '\0';
-            DrawTextEx(ibm_font_text, temp_letter, (Vector2){text_box.x + MARGIN_X + letter * single_character_width, text_box_mid}, 32, 1, letter_color);
-        }
-
-        // The cursor
-        DrawRectangle(text_box.x + 8 + current_letter_number * single_character_width, text_box.y + text_box.height / 2 + single_character_height / 2, single_character_width, 4, DARKGREEN);
-
-        // Waiting for user inputs
-        if ((key = GetCharPressed()) != 0 && !is_lesson_completed)
-        {
-            total_keystrokes += 1;
-            if (key == lesson_text[current_line_number][current_letter_number])
+            // training text
+            for (int letter = 0; letter < strlen(lesson_text[current_line_number]); letter++)
             {
-                letters_state[current_letter_number].is_correct = 1;
-                correct_keystrokes += 1;
-            }
-            else
-            {
-                letters_state[current_letter_number].is_wrong = 1;
-                incorrect_keystrokes += 1;
+                if (letters_state[letter].is_correct)
+                    letter_color = GREEN;
+                else if (letters_state[letter].is_wrong)
+                    letter_color = RED;
+                else
+                    letter_color = DARKGRAY;
+
+                char temp_letter[2];
+                temp_letter[0] = lesson_text[current_line_number][letter];
+                temp_letter[1] = '\0';
+                DrawTextEx(ibm_font_text, temp_letter, (Vector2){text_box.x + MARGIN_X + letter * single_character_width, text_box_mid}, 32, 1, letter_color);
             }
 
-            current_letter_number += 1;
+            // The cursor
+            DrawRectangle(text_box.x + 8 + current_letter_number * single_character_width, text_box.y + text_box.height / 2 + single_character_height / 2, single_character_width, 4, DARKGREEN);
 
-            if (lesson_text[current_line_number][current_letter_number] == '\0' && current_letter_number < LESSON_LINE_LENGTH - 1)
+            // Waiting for user inputs
+            if ((key = GetCharPressed()) != 0 && !is_lesson_completed)
             {
-                is_lesson_completed = 1;
+                // Start the time
+                if (!is_time_started)
+                {
+                    start_time = time(NULL);
+                    is_time_started = 1;
+                }
+                total_keystrokes += 1;
+
+                // Check if correct key is pressed or not
+                if (key == lesson_text[current_line_number][current_letter_number])
+                {
+                    letters_state[current_letter_number].is_correct = 1;
+                    correct_keystrokes += 1;
+                }
+                else
+                {
+                    letters_state[current_letter_number].is_wrong = 1;
+                    incorrect_keystrokes += 1;
+                }
+
+                current_letter_number += 1;
+
+                // If lesson is completed
+                if (lesson_text[current_line_number][current_letter_number] == '\0' && current_letter_number < LESSON_LINE_LENGTH - 1)
+                {
+                    is_lesson_completed = 1;
+                    is_time_started = 0;
+                    end_time = time(NULL);
+                }
+
+                // If one line is completed
+                if (current_letter_number >= LESSON_LINE_LENGTH - 1)
+                {
+                    current_letter_number = 0;
+                    current_line_number += 1;
+
+                    reset_validations(letters_state, strlen(lesson_text[current_line_number]));
+                }
             }
 
-            if (current_letter_number >= LESSON_LINE_LENGTH - 1)
+            // When next button is clicked
+            if ((CheckCollisionPointRec(GetMousePosition(), next_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || (is_lesson_completed && IsKeyPressed(KEY_ENTER)))
             {
+                correct_keystrokes = 0;
+                total_keystrokes = 0;
+                incorrect_keystrokes = 0;
+                is_lesson_completed = 0;
+                current_lesson += 1;
+                start_time = time(NULL);
                 current_letter_number = 0;
-                current_line_number += 1;
+                current_line_number = 0;
 
-                reset_validations(letters_state, strlen(lesson_text[current_line_number]));
+                if (current_lesson == TOTAL_LESSONS - 1)
+                {
+                    // TODO: Add completion code here
+                }
+                else
+                {
+                    reset_lesson_name(lesson_name);
+                    strcat(lesson_name, lessons[current_lesson]);
+                    load_lesson(lesson_name, lesson_text);
+                    reset_validations(letters_state, strlen(lesson_text[current_line_number]));
+                }
+            }
+
+            if (!is_lesson_completed)
+                DrawTexture(keyboard, 16, 240, RAYWHITE);
+
+            if (is_lesson_completed)
+            {
+                DrawRectangleRounded(next_btn, 0.15, 1000, DARKPURPLE);
+                DrawTextEx(ibm_font_text, "Next lesson", (Vector2){next_btn.x + 16, next_btn.y + next_btn.height / 2 - single_character_height / 2}, 32, 1, WHITE);
+
+                DrawRectangleRounded(stats_box, 0.05, 1000, WHITE);
+                DrawTextEx(ibm_font_title, "Stats", (Vector2){stats_box.x + 16, stats_box.y + 16}, 36, 1, DARKGRAY);
+                int line_position_y = stats_box.y + 16 + (single_character_height + 8) + 4;
+                DrawLine(stats_box.x + 16, line_position_y, stats_box.x + stats_box.width - 24, line_position_y, LIGHTGRAY);
+
+                // print words per minute
+                sprintf(words_per_minute, "WPM: %d", get_wpm(correct_keystrokes + incorrect_keystrokes, end_time - start_time));
+                DrawTextEx(ibm_font_text, words_per_minute, (Vector2){stats_box.x + 16, line_position_y + 8}, 32, 1, DARKGRAY);
+
+                // print accuracy
+                sprintf(accuracy, "Accuracy: %.2f", get_accuracy(correct_keystrokes, total_keystrokes));
+                DrawTextEx(ibm_font_text, accuracy, (Vector2){stats_box.x + 16, line_position_y + 16 + single_character_height}, 32, 1, DARKGRAY);
+
+                // print time
+                sprintf(time_string, "Time: %ds", end_time - start_time);
+                DrawTextEx(ibm_font_text, time_string, (Vector2){stats_box.x + 16, line_position_y + 32 + single_character_height * 2}, 32, 1, DARKGRAY);
             }
         }
 
-        DrawTexture(keyboard, 16, 240, RAYWHITE);
         EndDrawing();
     }
     UnloadTexture(keyboard);
@@ -242,5 +335,17 @@ void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH])
         fgets(lesson_text[i], LESSON_LINE_LENGTH, lesson);
         i += 1;
     } while (!feof(lesson));
+
     fclose(lesson);
+}
+void reset_lesson_name(char *lesson_name)
+{
+    char *prefix = "lessons/";
+    for (int i = 0; i < LESSON_NAME_LENGTH * 2; i++)
+    {
+        if (i < strlen(prefix))
+            lesson_name[i] = prefix[i];
+        else
+            lesson_name[i] = 0;
+    }
 }
