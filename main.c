@@ -37,12 +37,14 @@ enum APP_STATUS
 // ------------------------- //
 int get_wpm(int keystrokes, int number_of_seconds);
 float get_accuracy(int correct, int total);
-void get_lesson_names(char (*lessons)[NAME_LENGTH]);
+void get_files_from(char (*list)[NAME_LENGTH], char *folder_name);
 void sort_lessons(char (*lessons)[NAME_LENGTH]);
 int extract_lesson_number(char *lesson);
 void reset_validations(letter_state *v, int length);
 void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH]);
 void reset_lesson_name(char *lesson_name);
+char *strremove(char *str, const char *sub);
+void save_user_data(char *current_user, char *lesson_name, char *accuracy, char *words_per_minute);
 
 // ------------------------- //
 // Local Variables
@@ -58,8 +60,15 @@ int main()
     get_files_from(lessons, "lessons");
     sort_lessons(lessons);
 
-    char users[MAX_USERS][NAME_LENGTH];
+    char users[MAX_USERS][NAME_LENGTH] = {0};
+    int selected_user[MAX_USERS] = {1};
     get_files_from(users, "users");
+
+    // Remove .txt from every user
+    for (int i = 0; i < MAX_USERS; i++)
+    {
+        strcpy(users[i], strremove(users[i], ".txt"));
+    }
 
     InitWindow(width, height, "Typing Tutor - by Hamza");
     SetTargetFPS(60);
@@ -77,9 +86,34 @@ int main()
     // Menu box
     Rectangle menu_box;
     menu_box.width = 480;
-    menu_box.height = 320;
+    menu_box.height = 360;
     menu_box.x = width / 2 - menu_box.width / 2;
     menu_box.y = height / 2 - menu_box.height / 2;
+
+    // User boxes
+    int margin_x = 16;
+    Rectangle user_box1;
+    user_box1.width = menu_box.width - margin_x * 2;
+    user_box1.height = 60;
+    user_box1.x = menu_box.x + margin_x;
+    user_box1.y = menu_box.y + single_character_height + 32;
+    Rectangle user_box2;
+    user_box2.width = menu_box.width - margin_x * 2;
+    user_box2.height = 60;
+    user_box2.x = user_box1.x;
+    user_box2.y = user_box1.y + user_box2.height + 8;
+    Rectangle user_box3;
+    user_box3.width = menu_box.width - margin_x * 2;
+    user_box3.height = 60;
+    user_box3.x = user_box1.x;
+    user_box3.y = user_box2.y + user_box3.height + 8;
+
+    // Start Button
+    Rectangle start_btn;
+    start_btn.width = 108;
+    start_btn.height = 36;
+    start_btn.x = menu_box.x + margin_x;
+    start_btn.y = menu_box.y + menu_box.height - start_btn.height - margin_x;
 
     // Text box
     Rectangle text_box;
@@ -133,6 +167,8 @@ int main()
     char accuracy[50] = {0};
     char time_string[50] = {0};
 
+    char current_user[NAME_LENGTH];
+
     while (!WindowShouldClose())
     {
         BeginDrawing();
@@ -142,6 +178,58 @@ int main()
         {
             DrawRectangleRounded(menu_box, 0.05, 1000, WHITE);
             DrawTextEx(ibm_font_title, "WELCOME", (Vector2){text_box.x + text_box.width / 2 - single_character_width * 8 / 2, menu_box.y + 8}, 36, 1, DARKGRAY);
+
+            if (CheckCollisionPointRec(GetMousePosition(), user_box1) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                selected_user[0] = 1;
+                selected_user[1] = 0;
+                selected_user[2] = 0;
+            }
+            if (CheckCollisionPointRec(GetMousePosition(), user_box2) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                selected_user[0] = 0;
+                selected_user[1] = 1;
+                selected_user[2] = 0;
+            }
+            if (CheckCollisionPointRec(GetMousePosition(), user_box3) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                selected_user[0] = 0;
+                selected_user[1] = 0;
+                selected_user[2] = 1;
+            }
+
+            if (*users[0] != NULL)
+            {
+                DrawRectangleRounded(user_box1, 0.1, 1000, selected_user[0] ? PURPLE : RAYWHITE);
+                DrawTextEx(ibm_font_text, users[0], (Vector2){user_box1.x + 8, user_box1.y + 12}, 32, 1, DARKGRAY);
+            }
+            if (*users[1] != NULL)
+            {
+                DrawRectangleRounded(user_box2, 0.1, 1000, selected_user[1] ? PURPLE : RAYWHITE);
+                DrawTextEx(ibm_font_text, users[1], (Vector2){user_box2.x + 8, user_box2.y + 12}, 32, 1, DARKGRAY);
+            }
+            if (*users[2] != NULL)
+            {
+                DrawRectangleRounded(user_box3, 0.1, 1000, selected_user[2] ? PURPLE : RAYWHITE);
+                DrawTextEx(ibm_font_text, users[2], (Vector2){user_box3.x + 8, user_box3.y + 12}, 32, 1, DARKGRAY);
+            }
+
+            // Draw buttons
+            DrawRectangleRounded(start_btn, 0.1, 1000, DARKPURPLE);
+            DrawTextEx(ibm_font_text, "Start", (Vector2){start_btn.x + 8, start_btn.y + 2}, 32, 1, WHITE);
+
+            if (CheckCollisionPointRec(GetMousePosition(), start_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                int selected_user_index = 0;
+                for (int i = 0; i < MAX_USERS; i++)
+                    if (selected_user[i])
+                    {
+                        selected_user_index = i;
+                        break;
+                    }
+                current_layer = TYPING_LAYER;
+                strcpy(current_user, strcat(users[selected_user_index], ".txt"));
+            }
         }
 
         if (current_layer == TYPING_LAYER)
@@ -261,6 +349,8 @@ int main()
                 // print time
                 sprintf(time_string, "Time: %ds", end_time - start_time);
                 DrawTextEx(ibm_font_text, time_string, (Vector2){stats_box.x + 16, line_position_y + 32 + single_character_height * 2}, 32, 1, DARKGRAY);
+
+                save_user_data(current_user, lesson_name, accuracy, words_per_minute);
             }
         }
 
@@ -361,4 +451,17 @@ void reset_lesson_name(char *lesson_name)
         else
             lesson_name[i] = 0;
     }
+}
+char *strremove(char *str, const char *sub)
+{
+    size_t len = strlen(sub);
+    if (len > 0)
+    {
+        char *p = str;
+        while ((p = strstr(p, sub)) != NULL)
+        {
+            memmove(p, p + len, strlen(p + len) + 1);
+        }
+    }
+    return str;
 }

@@ -12,5 +12,5 @@
     "string": "c",
     "*.m": "c"
   },
-  "cSpell.words": ["MARGINX"]
+  "cSpell.words": ["MARGINX", "strremove"]
 }
