@@ -14,8 +14,9 @@
 #define LESSON_LINES_COUNT 10
 #define STANDARD_WORD_LENGTH 5
 #define TOTAL_LESSONS 144
-#define LESSON_NAME_LENGTH 20
+#define NAME_LENGTH 20
 #define MARGIN_X 8
+#define MAX_USERS 3
 
 // ------------------------- //
 // User defined types
@@ -36,8 +37,8 @@ enum APP_STATUS
 // ------------------------- //
 int get_wpm(int keystrokes, int number_of_seconds);
 float get_accuracy(int correct, int total);
-void get_lesson_names(char (*lessons)[LESSON_NAME_LENGTH]);
-void sort_lessons(char (*lessons)[LESSON_NAME_LENGTH]);
+void get_lesson_names(char (*lessons)[NAME_LENGTH]);
+void sort_lessons(char (*lessons)[NAME_LENGTH]);
 int extract_lesson_number(char *lesson);
 void reset_validations(letter_state *v, int length);
 void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH]);
@@ -53,9 +54,12 @@ Texture2D keyboard;
 int main()
 {
 
-    char lessons[TOTAL_LESSONS][LESSON_NAME_LENGTH];
-    get_lesson_names(lessons);
+    char lessons[TOTAL_LESSONS][NAME_LENGTH];
+    get_files_from(lessons, "lessons");
     sort_lessons(lessons);
+
+    char users[MAX_USERS][NAME_LENGTH];
+    get_files_from(users, "users");
 
     InitWindow(width, height, "Typing Tutor - by Hamza");
     SetTargetFPS(60);
@@ -70,6 +74,14 @@ int main()
     Vector2 text_size = MeasureTextEx(ibm_font_title, title, 36, 1);
     Vector2 title_position = {width / 2 - text_size.x / 2, 4};
 
+    // Menu box
+    Rectangle menu_box;
+    menu_box.width = 480;
+    menu_box.height = 320;
+    menu_box.x = width / 2 - menu_box.width / 2;
+    menu_box.y = height / 2 - menu_box.height / 2;
+
+    // Text box
     Rectangle text_box;
     text_box.x = 16;
     text_box.y = 64;
@@ -93,13 +105,8 @@ int main()
 
     keyboard = LoadTexture("resources/keyboard.png");
 
-    // int end_time = time(NULL);
-    // printf("\nCorrect: %d\nIncorrect: %d\nTotal keystrokes: %d\n", correct_keystrokes, incorrect_keystrokes, total_keystrokes);
-    // printf("Accuracy: %.2f\n", get_accuracy(correct_keystrokes, total_keystrokes));
-    // printf("WPM: %d\n", get_wpm(correct_keystrokes + incorrect_keystrokes, end_time - start_time));
-
     int current_lesson = 0;
-    char lesson_name[LESSON_NAME_LENGTH * 2];
+    char lesson_name[NAME_LENGTH * 2];
     reset_lesson_name(lesson_name);
     strcat(lesson_name, lessons[current_lesson]);
     char lesson_text[LESSON_LINES_COUNT][LESSON_LINE_LENGTH] = {0};
@@ -130,6 +137,12 @@ int main()
     {
         BeginDrawing();
         ClearBackground(RAYWHITE);
+
+        if (current_layer == MENU_LAYER)
+        {
+            DrawRectangleRounded(menu_box, 0.05, 1000, WHITE);
+            DrawTextEx(ibm_font_title, "WELCOME", (Vector2){text_box.x + text_box.width / 2 - single_character_width * 8 / 2, menu_box.y + 8}, 36, 1, DARKGRAY);
+        }
 
         if (current_layer == TYPING_LAYER)
         { // Print the title
@@ -267,30 +280,30 @@ float get_accuracy(int correct, int total)
 {
     return (float)correct / total * 100;
 }
-void get_lesson_names(char (*lessons)[LESSON_NAME_LENGTH])
+void get_files_from(char (*list)[NAME_LENGTH], char *folder_name)
 {
-    DIR *lessons_folder;
+    DIR *folder;
     struct dirent *file;
-    lessons_folder = opendir("lessons");
-    int current_lesson = 0;
-    if (lessons_folder)
+    folder = opendir(folder_name);
+    int current_file = 0;
+    if (folder)
     {
-        while ((file = readdir(lessons_folder)) != NULL)
+        while ((file = readdir(folder)) != NULL)
         {
             if (strcmp(".", file->d_name) == 0 || strcmp("..", file->d_name) == 0)
             {
                 continue;
             }
-            strcpy(lessons[current_lesson], file->d_name);
-            current_lesson += 1;
+            strcpy(list[current_file], file->d_name);
+            current_file += 1;
         }
-        closedir(lessons_folder);
+        closedir(folder);
     }
 }
-void sort_lessons(char (*lessons)[LESSON_NAME_LENGTH])
+void sort_lessons(char (*lessons)[NAME_LENGTH])
 {
     size_t i, j;
-    char temp[LESSON_NAME_LENGTH];
+    char temp[NAME_LENGTH];
     for (i = 0; i < TOTAL_LESSONS - 1; i++)
     {
         for (j = 0; j < TOTAL_LESSONS - 1 - i; j++)
@@ -341,7 +354,7 @@ void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH])
 void reset_lesson_name(char *lesson_name)
 {
     char *prefix = "lessons/";
-    for (int i = 0; i < LESSON_NAME_LENGTH * 2; i++)
+    for (int i = 0; i < NAME_LENGTH * 2; i++)
     {
         if (i < strlen(prefix))
             lesson_name[i] = prefix[i];
