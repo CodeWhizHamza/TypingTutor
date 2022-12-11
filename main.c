@@ -170,6 +170,7 @@ int main()
     int is_trainer_completed = 0;
     int start_time = 0, end_time = 0;
     int is_time_started = 0;
+    int has_enough_accuracy = 0;
 
     char words_per_minute[50] = {0};
     char accuracy[50] = {0};
@@ -255,7 +256,7 @@ int main()
 
             DrawRectangleRounded(text_box, 0.05, 1000, WHITE);
 
-            // training text
+            // printing training text
             for (int letter = 0; letter < strlen(lesson_text[current_line_number]); letter++)
             {
                 if (letters_state[letter].is_correct)
@@ -326,31 +327,33 @@ int main()
                 total_keystrokes = 0;
                 incorrect_keystrokes = 0;
                 is_lesson_completed = 0;
-                current_lesson += 1;
                 start_time = time(NULL);
                 current_letter_number = 0;
                 current_line_number = 0;
 
-                if (current_lesson >= TOTAL_LESSONS - 1)
-                    is_trainer_completed = 1;
-                if (is_trainer_completed)
-                {
-                    DrawRectangle(0, 0, width, height, PURPLE);
-                    DrawText("Congratulations! You completed your training.", width / 2 - single_character_width * 23, height / 2 - single_character_height / 2, 32, WHITE);
+                // If accuracy is not enough, then don't let him go to next lesson
+                if (has_enough_accuracy)
+                    current_lesson += 1;
+                // if (current_lesson >= TOTAL_LESSONS - 1)
+                //     is_trainer_completed = 1;
+                // if (is_trainer_completed)
+                // {
+                //     DrawRectangle(0, 0, width, height, PURPLE);
+                //     DrawText("Congratulations! You completed your training.", width / 2 - single_character_width * 23, height / 2 - single_character_height / 2, 32, WHITE);
 
-                    current_lesson = 0;
-                    reset_lesson_name(lesson_name);
-                    strcat(lesson_name, lessons[current_lesson]);
-                    load_lesson(lesson_name, lesson_text);
-                    reset_validations(letters_state, strlen(lesson_text[current_line_number]));
-                }
-                else
-                {
-                    reset_lesson_name(lesson_name);
-                    strcat(lesson_name, lessons[current_lesson]);
-                    load_lesson(lesson_name, lesson_text);
-                    reset_validations(letters_state, strlen(lesson_text[current_line_number]));
-                }
+                //     current_lesson = 0;
+                //     reset_lesson_name(lesson_name);
+                //     strcat(lesson_name, lessons[current_lesson]);
+                //     load_lesson(lesson_name, lesson_text);
+                //     reset_validations(letters_state, strlen(lesson_text[current_line_number]));
+                // }
+                // else
+                // {
+                reset_lesson_name(lesson_name);
+                strcat(lesson_name, lessons[current_lesson]);
+                load_lesson(lesson_name, lesson_text);
+                reset_validations(letters_state, strlen(lesson_text[current_line_number]));
+                // }
             }
 
             if (!is_lesson_completed)
@@ -358,9 +361,15 @@ int main()
 
             if (is_lesson_completed)
             {
-                DrawRectangleRounded(next_btn, 0.15, 1000, DARKPURPLE);
-                DrawTextEx(ibm_font_text, "Next lesson", (Vector2){next_btn.x + 16, next_btn.y + next_btn.height / 2 - single_character_height / 2}, 32, 1, WHITE);
 
+                has_enough_accuracy = get_accuracy(correct_keystrokes, total_keystrokes) >= 85;
+
+                // Draw next button
+                DrawRectangleRounded(next_btn, 0.15, 1000, DARKPURPLE);
+                char *button_text = has_enough_accuracy ? "Next button" : "Retry";
+                DrawTextEx(ibm_font_text, button_text, (Vector2){next_btn.x + 16, next_btn.y + next_btn.height / 2 - single_character_height / 2}, 32, 1, WHITE);
+
+                // Draw status Box
                 DrawRectangleRounded(stats_box, 0.05, 1000, WHITE);
                 DrawTextEx(ibm_font_title, "Stats", (Vector2){stats_box.x + 16, stats_box.y + 16}, 36, 1, DARKGRAY);
                 int line_position_y = stats_box.y + 16 + (single_character_height + 8) + 4;
