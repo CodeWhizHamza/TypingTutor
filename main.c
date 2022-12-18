@@ -94,14 +94,14 @@ int main()
     // Menu box
     Rectangle menu_box;
     menu_box.width = 360;
-    menu_box.height = 360;
+    menu_box.height = 320;
     menu_box.x = 48;
     menu_box.y = height / 2 - menu_box.height / 2;
 
     // Current User info box
     Rectangle current_user_info_box;
     current_user_info_box.width = 360;
-    current_user_info_box.height = 360;
+    current_user_info_box.height = 320;
     current_user_info_box.x = menu_box.x + 48 + /* margin */ menu_box.width;
     current_user_info_box.y = height / 2 - current_user_info_box.height / 2;
 
@@ -128,16 +128,22 @@ int main()
     // Reset user button
     Rectangle reset_user_button;
     reset_user_button.x = current_user_info_box.x + 16;
-    reset_user_button.y = current_user_info_box.y + 16 + 8 * single_character_height + 8;
+    reset_user_button.y = current_user_info_box.y + 16 + 7 * single_character_height + 8;
     reset_user_button.width = 108;
     reset_user_button.height = 48;
 
     // Start Button
     Rectangle start_lesson_button;
-    start_lesson_button.width = 108;
+    start_lesson_button.width = single_character_width * strlen("Start Lesson") + 16;
     start_lesson_button.height = 48;
-    start_lesson_button.x = menu_box.x + margin_x;
-    start_lesson_button.y = menu_box.y + menu_box.height - start_lesson_button.height - margin_x;
+    start_lesson_button.x = menu_box.x + 160 + MARGIN_X * 2;
+    start_lesson_button.y = menu_box.y + menu_box.height + 36;
+
+    Rectangle start_practice_button;
+    start_practice_button.width = single_character_width * strlen("Start practice") + 16;
+    start_practice_button.height = 48;
+    start_practice_button.x = start_lesson_button.x + start_lesson_button.width + MARGIN_X * 2;
+    start_practice_button.y = menu_box.y + menu_box.height + 36;
 
     // Text box
     Rectangle text_box;
@@ -236,6 +242,7 @@ int main()
             sprintf(history_line_container, "Time: %ds", history_holder.time);
             DrawTextEx(ibm_font_text, history_line_container, (Vector2){current_user_info_box.x + 16, current_user_info_box.y + 16 + 5 * single_character_height + 8}, 32, 1, DARKGRAY);
 
+            // Draw reset button
             DrawRectangleRounded(reset_user_button, 0.1, 1000, DARKPURPLE);
             DrawTextEx(ibm_font_text, "Reset", (Vector2){reset_user_button.x + 16, reset_user_button.y + 8}, 32, 1, WHITE);
 
@@ -265,9 +272,13 @@ int main()
                 }
             }
 
-            // Draw start button
-            DrawRectangleRounded(start_lesson_button, 0.1, 1000, DARKPURPLE);
-            DrawTextEx(ibm_font_text, "Start", (Vector2){start_lesson_button.x + 8, start_lesson_button.y + 8}, 32, 1, WHITE);
+            // Draw start lesson button
+            DrawRectangleRounded(start_lesson_button, 0.15, 1000, DARKPURPLE);
+            DrawTextEx(ibm_font_text, "Start Lesson", (Vector2){start_lesson_button.x + 8, start_lesson_button.y + 8}, 32, 1, WHITE);
+
+            // Draw start practice button
+            DrawRectangleRounded(start_practice_button, 0.15, 1000, DARKPURPLE);
+            DrawTextEx(ibm_font_text, "Start Practice", (Vector2){start_practice_button.x + 8, start_practice_button.y + 8}, 32, 1, WHITE);
 
             if ((CheckCollisionPointRec(GetMousePosition(), start_lesson_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || IsKeyPressed(KEY_ENTER))
             {
