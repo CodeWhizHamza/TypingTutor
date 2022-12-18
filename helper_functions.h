@@ -163,3 +163,52 @@ int get_selected_index(int arr[])
     }
     return selected_user_index;
 }
+void load_words(char lesson_text[][LESSON_LINE_LENGTH])
+{
+    srand(time(NULL));
+    FILE *file = fopen("words.txt", "r");
+    char all_words[5840];
+    fgets(all_words, 5840, file);
+    fclose(file);
+
+    char words[1000][20];
+
+    int i = 0;
+    char *token = strtok(all_words, " ");
+
+    while (token != NULL)
+    {
+        strcpy(words[i], token);
+        token = strtok(NULL, " ");
+        i += 1;
+    }
+    int count = 0;
+    for (int i = 0; i < 1000; i++)
+    {
+        if (strlen(words[i]) > 0)
+            count += 1;
+    }
+    char string[400];
+    int index;
+    for (int i = 0; i < 50; i++)
+    {
+        index = rand() % 1000;
+        strcat(string, words[index]);
+        strcat(string, " ");
+    }
+    int line_index = 0;
+    index = 0;
+
+    for (int i = 0; i < strlen(string); i++)
+    {
+        lesson_text[line_index][index] = string[i];
+        index += 1;
+
+        if (index >= 54)
+        {
+            lesson_text[line_index][index] = '\0';
+            line_index += 1;
+            index = 0;
+        }
+    }
+}

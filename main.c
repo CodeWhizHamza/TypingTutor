@@ -11,7 +11,7 @@
 // Macros
 // ------------------------- //
 #define LESSON_LINE_LENGTH 55
-#define LESSON_LINES_COUNT 10
+#define LESSON_LINES_COUNT 100
 #define STANDARD_WORD_LENGTH 5
 #define TOTAL_LESSONS 144
 #define NAME_LENGTH 20
@@ -207,7 +207,6 @@ int main()
     char time_string[50] = {0};
 
     // Current user previous history
-
     char current_user[NAME_LENGTH];
     char temp[NAME_LENGTH];
     strcpy(current_user, strcat(strcpy(temp, users[get_selected_index(selected_user)]), ".txt"));
@@ -235,7 +234,7 @@ int main()
 
             DrawTextEx(ibm_font_title, "History", (Vector2){current_user_info_box.x + 16, current_user_info_box.y + 16}, 36, 1, DARKGRAY);
 
-            sprintf(history_line_container, "Lesson: %d", history_holder.lesson_number);
+            sprintf(history_line_container, "Lesson: %d", history_holder.lesson_number + 1);
             DrawTextEx(ibm_font_text, history_line_container, (Vector2){current_user_info_box.x + 16, current_user_info_box.y + 16 + 2 * single_character_height + 8}, 32, 1, DARKGRAY);
             sprintf(history_line_container, "Accuracy: %.2f", history_holder.accuracy);
             DrawTextEx(ibm_font_text, history_line_container, (Vector2){current_user_info_box.x + 16, current_user_info_box.y + 16 + 3.5 * single_character_height + 8}, 32, 1, DARKGRAY);
@@ -282,13 +281,7 @@ int main()
 
             if ((CheckCollisionPointRec(GetMousePosition(), start_lesson_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || IsKeyPressed(KEY_ENTER))
             {
-                int selected_user_index = 0;
-                for (int i = 0; i < MAX_USERS; i++)
-                    if (selected_user[i])
-                    {
-                        selected_user_index = i;
-                        break;
-                    }
+                int selected_user_index = get_selected_index(selected_user);
                 current_layer = LESSONS_LAYER;
                 strcpy(current_user, strcat(users[selected_user_index], ".txt"));
                 load_current_lesson(current_user, &current_lesson);
@@ -296,12 +289,17 @@ int main()
                 strcat(lesson_name, lessons[current_lesson]);
                 load_lesson(lesson_name, lesson_text);
             }
+            if (CheckCollisionPointRec(GetMousePosition(), start_practice_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                current_layer = PRACTICE_LAYER;
+                load_words(lesson_text);
+            }
         }
 
-        if (current_layer == LESSONS_LAYER)
-        { // Print the title
+        if (current_layer == LESSONS_LAYER || current_layer == PRACTICE_LAYER)
+        {
+            // Print the title
             DrawTextEx(ibm_font_title, title, title_position, 36, 1, BLACK);
-
             DrawRectangleRounded(text_box, 0.05, 1000, WHITE);
 
             // printing training text
@@ -385,7 +383,12 @@ int main()
 
                 reset_lesson_name(lesson_name);
                 strcat(lesson_name, lessons[current_lesson]);
-                load_lesson(lesson_name, lesson_text);
+
+                if (current_layer == LESSONS_LAYER)
+                    load_lesson(lesson_name, lesson_text);
+                else
+                    load_words(lesson_text);
+
                 reset_validations(letters_state, strlen(lesson_text[current_line_number]));
             }
 
@@ -394,13 +397,21 @@ int main()
 
             if (is_lesson_completed)
             {
-
                 has_enough_accuracy = get_accuracy(correct_keystrokes, total_keystrokes) >= 85;
 
                 // Draw next button
-                DrawRectangleRounded(next_lesson_button, 0.15, 1000, DARKPURPLE);
-                char *button_text = has_enough_accuracy ? "Next button" : "Retry";
-                DrawTextEx(ibm_font_text, button_text, (Vector2){next_lesson_button.x + 16, next_lesson_button.y + next_lesson_button.height / 2 - single_character_height / 2}, 32, 1, WHITE);
+                if (current_layer == LESSONS_LAYER)
+                {
+                    DrawRectangleRounded(next_lesson_button, 0.15, 1000, DARKPURPLE);
+                    char *button_text = has_enough_accuracy ? "Next lesson" : "Retry";
+                    DrawTextEx(ibm_font_text, button_text, (Vector2){next_lesson_button.x + 16, next_lesson_button.y + next_lesson_button.height / 2 - single_character_height / 2}, 32, 1, WHITE);
+                }
+                else
+                {
+                    DrawRectangleRounded(next_lesson_button, 0.15, 1000, DARKPURPLE);
+                    char *button_text = "Start Again";
+                    DrawTextEx(ibm_font_text, button_text, (Vector2){next_lesson_button.x + 16, next_lesson_button.y + next_lesson_button.height / 2 - single_character_height / 2}, 32, 1, WHITE);
+                }
 
                 // Draw status Box
                 DrawRectangleRounded(stats_box, 0.05, 1000, WHITE);
@@ -421,7 +432,8 @@ int main()
                 DrawTextEx(ibm_font_text, time_string, (Vector2){stats_box.x + 16, line_position_y + 32 + single_character_height * 2}, 32, 1, DARKGRAY);
 
                 // save user data in file
-                save_user_data(current_user, is_trainer_completed ? 0 : current_lesson + 1, get_accuracy(correct_keystrokes, total_keystrokes), get_wpm(correct_keystrokes + incorrect_keystrokes, end_time - start_time));
+                if (current_layer == LESSONS_LAYER)
+                    save_user_data(current_user, is_trainer_completed ? 0 : current_lesson + 1, get_accuracy(correct_keystrokes, total_keystrokes), get_wpm(correct_keystrokes + incorrect_keystrokes, end_time - start_time));
             }
         }
         EndDrawing();
