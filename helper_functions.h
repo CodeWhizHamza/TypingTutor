@@ -1,5 +1,19 @@
 
 #pragma once
+int get_wpm(int keystrokes, int number_of_seconds);
+float get_accuracy(int correct, int total);
+void get_files_from(char (*list)[NAME_LENGTH], char *folder_name);
+void sort_lessons(char (*lessons)[NAME_LENGTH]);
+int extract_lesson_number(char *lesson);
+void reset_validations(letter_state *v, int length);
+void load_lesson(char *lesson_name, char lesson_text[][LESSON_LINE_LENGTH]);
+void reset_lesson_name(char *lesson_name);
+char *strremove(char *str, const char *sub);
+void save_user_data(char *current_user, int lesson_number, float accuracy, int wpm);
+void load_current_lesson(char *current_user, int *current_lesson);
+void get_current_user_data(UserHistory *holder, char *user_name);
+int get_selected_index(int arr[]);
+
 int get_wpm(int keystrokes, int number_of_seconds)
 {
     float words_count = (float)keystrokes / STANDARD_WORD_LENGTH;
@@ -105,19 +119,14 @@ char *strremove(char *str, const char *sub)
     }
     return str;
 }
-void save_user_data(char *current_user, char *lesson_name, char *accuracy, char *words_per_minute)
+void save_user_data(char *current_user, int lesson_number, float accuracy, int wpm)
 {
     char folder_name[] = "users/";
     char filename[40];
     strcpy(filename, strcat(folder_name, current_user));
     FILE *file;
     file = fopen(filename, "w");
-    fputs(lesson_name, file);
-    fputs("\n", file);
-    fputs(accuracy, file);
-    fputs("\n", file);
-    fputs(words_per_minute, file);
-    fputs("\n", file);
+    fprintf(file, "%d %f %d", lesson_number, accuracy, wpm);
     fclose(file);
 }
 void load_current_lesson(char *current_user, int *current_lesson)
@@ -129,4 +138,28 @@ void load_current_lesson(char *current_user, int *current_lesson)
     file = fopen(filename, "r");
     fscanf(file, "%d", current_lesson);
     fclose(file);
+}
+void get_current_user_data(UserHistory *holder, char *user_name)
+{
+    char folder_name[] = "users/";
+    char filename[40];
+    strcpy(filename, strcat(folder_name, user_name));
+    FILE *user_file = fopen(filename, "r");
+
+    fscanf(user_file, "%d %f %d", &holder->lesson_number, &holder->accuracy, &holder->time);
+
+    fclose(user_file);
+}
+int get_selected_index(int arr[])
+{
+    int selected_user_index = 0;
+    for (int i = 0; i < MAX_USERS; i++)
+    {
+        if (arr[i])
+        {
+            selected_user_index = i;
+            break;
+        }
+    }
+    return selected_user_index;
 }
