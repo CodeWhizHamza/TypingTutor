@@ -72,6 +72,11 @@ int main()
     InitWindow(width, height, "Typing Tutor - by Hamza");
     SetTargetFPS(60);
 
+    // Changing Icon
+    Image logo = LoadImage("resources/icon.png");
+    ImageFormat(&logo, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    SetWindowIcon(logo);
+
     // Load sounds
     InitAudioDevice();
     Music intro_music = LoadMusicStream("resources/welcome.wav");

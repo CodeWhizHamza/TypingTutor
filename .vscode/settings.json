@@ -10,7 +10,8 @@
   },
   "files.associations": {
     "string": "c",
-    "*.m": "c"
+    "*.m": "c",
+    "raylib.h": "c"
   },
   "cSpell.words": ["MARGINX", "strremove"]
 }
