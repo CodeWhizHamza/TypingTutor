@@ -13,6 +13,8 @@ void save_user_data(char *current_user, int lesson_number, float accuracy, int w
 void load_current_lesson(char *current_user, int *current_lesson);
 void get_current_user_data(UserHistory *holder, char *user_name);
 int get_selected_index(int arr[]);
+void reset_lesson_text(char arr[][LESSON_LINE_LENGTH]);
+void load_flappy_words(char flappy_words[TOTAL_WORDS][MAX_WORD_LENGTH]);
 
 int get_wpm(int keystrokes, int number_of_seconds)
 {
@@ -165,7 +167,6 @@ int get_selected_index(int arr[])
 }
 void load_words(char lesson_text[][LESSON_LINE_LENGTH])
 {
-    srand(time(NULL));
     FILE *file = fopen("words.txt", "r");
     char all_words[5840];
     fgets(all_words, 5840, file);
@@ -210,5 +211,32 @@ void load_words(char lesson_text[][LESSON_LINE_LENGTH])
             line_index += 1;
             index = 0;
         }
+    }
+}
+void reset_lesson_text(char arr[][LESSON_LINE_LENGTH])
+{
+    for (int i = 0; i < LESSON_LINES_COUNT; i++)
+    {
+        for (int j = 0; j < LESSON_LINE_LENGTH; j++)
+        {
+            arr[i][j] = '\0';
+        }
+    }
+}
+void load_flappy_words(char flappy_words[TOTAL_WORDS][MAX_WORD_LENGTH])
+{
+    FILE *file = fopen("words.txt", "r");
+    char all_words[5840];
+    fgets(all_words, 5840, file);
+    fclose(file);
+
+    int i = 0;
+    char *token = strtok(all_words, " ");
+
+    while (token != NULL)
+    {
+        strcpy(flappy_words[i], token);
+        token = strtok(NULL, " ");
+        i += 1;
     }
 }

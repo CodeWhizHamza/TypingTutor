@@ -18,6 +18,8 @@
 #define MARGIN_X 8
 #define MAX_USERS 3
 #define TEXT_LENGTH 80
+#define TOTAL_WORDS 1000
+#define MAX_WORD_LENGTH 20
 
 // ------------------------- //
 // User defined types
@@ -31,7 +33,11 @@ enum APP_STATUS
 {
     MENU_LAYER = 0,
     LESSONS_LAYER = 1,
-    PRACTICE_LAYER = 2
+    PRACTICE_LAYER = 2,
+    GAME_MENU = 3,
+    TYPING_STACK = 4,
+    TYPING_FLAPPY = 5,
+    TYPING_POPUP = 6
 };
 typedef struct
 {
@@ -39,9 +45,18 @@ typedef struct
     float accuracy;
     int time;
 } UserHistory;
+typedef struct
+{
+    bool is_done;
+} flappy_word_state;
 
 // included here so that it can access macros and user-defined variables
 #include "helper_functions.h"
+
+// ------------------------- //
+// Functions Prototypes
+// ------------------------- //
+void print_games_menu(Font, Font, Texture2D, Texture2D, Rectangle, Texture2D, Rectangle, int *);
 
 // ------------------------- //
 // Global Variables
@@ -52,6 +67,8 @@ Texture2D keyboard;
 
 int main()
 {
+    srand(time(NULL));
+
     // Load lessons
     char lessons[TOTAL_LESSONS][NAME_LENGTH];
     get_files_from(lessons, "lessons");
@@ -87,6 +104,7 @@ int main()
     int current_layer = MENU_LAYER;
 
     // Useful constant values
+    Font font_big = LoadFontEx("resources/IBM-font.ttf", 48, 0, 256);
     Font ibm_font_title = LoadFontEx("resources/IBM-font.ttf", 36, 0, 256);
     Font ibm_font_text = LoadFontEx("resources/IBM-font.ttf", 32, 0, 256);
     float single_character_width = MeasureTextEx(ibm_font_text, "D", 34.5, 1).x;
@@ -131,24 +149,32 @@ int main()
     Rectangle user_boxes[MAX_USERS] = {user_box1, user_box2, user_box3};
 
     // Reset user button
-    Rectangle reset_user_button;
-    reset_user_button.x = current_user_info_box.x + 16;
-    reset_user_button.y = current_user_info_box.y + 16 + 7 * single_character_height + 8;
-    reset_user_button.width = 108;
-    reset_user_button.height = 48;
+    Rectangle btn_reset_user_data;
+    btn_reset_user_data.x = current_user_info_box.x + 16;
+    btn_reset_user_data.y = current_user_info_box.y + 16 + 7 * single_character_height + 8;
+    btn_reset_user_data.width = 108;
+    btn_reset_user_data.height = 48;
 
-    // Start Button
-    Rectangle start_lesson_button;
-    start_lesson_button.width = single_character_width * strlen("Start Lesson") + 16;
-    start_lesson_button.height = 48;
-    start_lesson_button.x = menu_box.x + 160 + MARGIN_X * 2;
-    start_lesson_button.y = menu_box.y + menu_box.height + 36;
+    // Start practice button
+    Rectangle btn_start_lesson;
+    btn_start_lesson.width = single_character_width * strlen("Start Lesson") + 16;
+    btn_start_lesson.height = 48;
+    btn_start_lesson.x = menu_box.x + 40 + MARGIN_X * 2;
+    btn_start_lesson.y = menu_box.y + menu_box.height + 36;
 
-    Rectangle start_practice_button;
-    start_practice_button.width = single_character_width * strlen("Start practice") + 16;
-    start_practice_button.height = 48;
-    start_practice_button.x = start_lesson_button.x + start_lesson_button.width + MARGIN_X * 2;
-    start_practice_button.y = menu_box.y + menu_box.height + 36;
+    // Start practice button
+    Rectangle btn_start_practice;
+    btn_start_practice.width = single_character_width * strlen("Start practice") + 16;
+    btn_start_practice.height = 48;
+    btn_start_practice.x = btn_start_lesson.x + btn_start_lesson.width + MARGIN_X * 2;
+    btn_start_practice.y = menu_box.y + menu_box.height + 36;
+
+    // Play games button
+    Rectangle btn_play_games;
+    btn_play_games.width = single_character_width * strlen("Play Games") + 16;
+    btn_play_games.height = 48;
+    btn_play_games.x = btn_start_practice.x + btn_start_practice.width + MARGIN_X * 2;
+    btn_play_games.y = menu_box.y + menu_box.height + 36;
 
     // Text box
     Rectangle text_box;
@@ -219,26 +245,57 @@ int main()
     get_current_user_data(&history_holder, current_user);
     char history_line_container[TEXT_LENGTH];
 
+    // * GAMES DATA
+    Texture2D duck_sprite = LoadTexture("resources/duck-sprites.png");
+    Texture2D stack_png = LoadTexture("resources/stack.png");
+    Texture2D clouds_sprite = LoadTexture("resources/clouds.png");
+    Rectangle duck_frame = {0.0f, 0.0f, (float)duck_sprite.width / 3, (float)duck_sprite.height};
+    Rectangle clouds_frame = {0.0f, 0.0f, (float)clouds_sprite.width / 3, (float)clouds_sprite.height};
+
+    // Flappy states
+    int duck_current_frame = 0;
+    float duck_y_position = 80;
+    float game_speed = 0.2f;
+    int frame_speed = 10;
+    int frame_flag = 0;
+    bool game_running = false;
+    bool game_over = false;
+    Texture2D background = LoadTexture("resources/background.png");
+    Rectangle background_frame = {0.0f, 0.0f, width, height};
+    char flappy_words[TOTAL_WORDS][MAX_WORD_LENGTH] = {0};
+    load_flappy_words(flappy_words);
+    char current_word[MAX_WORD_LENGTH];
+    int current_word_index;
+    int current_letter_index;
+    bool current_word_states[MAX_WORD_LENGTH];
+    int flappy_score;
+    size_t i;
+    Sound game_over_sound = LoadSound("resources/game-over.mp3");
+    Music music = LoadMusicStream("resources/game-music.mp3");
+    bool sound_not_played;
+
     while (!WindowShouldClose())
     {
-        // Play welcome sound
-        if (GetMusicTimePlayed(intro_music) < GetMusicTimeLength(intro_music) - 0.1 && current_layer != LESSONS_LAYER)
-            UpdateMusicStream(intro_music);
-        else
-            StopMusicStream(intro_music);
-
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
         if (current_layer == MENU_LAYER)
         {
+            // Play welcome sound
+            if (GetMusicTimePlayed(intro_music) < GetMusicTimeLength(intro_music) - 0.1 && current_layer != LESSONS_LAYER)
+                UpdateMusicStream(intro_music);
+            else
+                StopMusicStream(intro_music);
+
+            // App menu layer
             DrawTextEx(ibm_font_title, "WELCOME", (Vector2){text_box.x + text_box.width / 2 - single_character_width * 8 / 2, 48}, 36, 1, DARKGRAY);
             DrawRectangleRounded(menu_box, 0.05, 1000, WHITE);
 
+            /**
+             * Draw The history box in right of our menu box.
+             */
             DrawRectangleRounded(current_user_info_box, 0.05, 1000, WHITE);
-
             DrawTextEx(ibm_font_title, "History", (Vector2){current_user_info_box.x + 16, current_user_info_box.y + 16}, 36, 1, DARKGRAY);
-
             sprintf(history_line_container, "Lesson: %d", history_holder.lesson_number + 1);
             DrawTextEx(ibm_font_text, history_line_container, (Vector2){current_user_info_box.x + 16, current_user_info_box.y + 16 + 2 * single_character_height + 8}, 32, 1, DARKGRAY);
             sprintf(history_line_container, "Accuracy: %.2f", history_holder.accuracy);
@@ -247,18 +304,20 @@ int main()
             DrawTextEx(ibm_font_text, history_line_container, (Vector2){current_user_info_box.x + 16, current_user_info_box.y + 16 + 5 * single_character_height + 8}, 32, 1, DARKGRAY);
 
             // Draw reset button
-            DrawRectangleRounded(reset_user_button, 0.1, 1000, DARKPURPLE);
-            DrawTextEx(ibm_font_text, "Reset", (Vector2){reset_user_button.x + 16, reset_user_button.y + 8}, 32, 1, WHITE);
+            DrawRectangleRounded(btn_reset_user_data, 0.1, 1000, DARKPURPLE);
+            DrawTextEx(ibm_font_text, "Reset", (Vector2){btn_reset_user_data.x + 16, btn_reset_user_data.y + 8}, 32, 1, WHITE);
 
             // Reset user progress
-            if (CheckCollisionPointRec(GetMousePosition(), reset_user_button) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+            if (CheckCollisionPointRec(GetMousePosition(), btn_reset_user_data) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
             {
                 strcpy(current_user, strcat(strcpy(temp, users[get_selected_index(selected_user)]), ".txt"));
                 save_user_data(current_user, 0, 0.0, 0);
                 get_current_user_data(&history_holder, current_user);
             }
 
-            // Draw user boxes
+            /**
+             * Draw user selection boxes.
+             */
             for (int i = 0; i < MAX_USERS; i++)
             {
                 DrawRectangleRounded(user_boxes[i], 0.1, 1000, selected_user[i] ? PURPLE : RAYWHITE);
@@ -277,14 +336,18 @@ int main()
             }
 
             // Draw start lesson button
-            DrawRectangleRounded(start_lesson_button, 0.15, 1000, DARKPURPLE);
-            DrawTextEx(ibm_font_text, "Start Lesson", (Vector2){start_lesson_button.x + 8, start_lesson_button.y + 8}, 32, 1, WHITE);
+            DrawRectangleRounded(btn_start_lesson, 0.15, 1000, DARKPURPLE);
+            DrawTextEx(ibm_font_text, "Start Lesson", (Vector2){btn_start_lesson.x + 8, btn_start_lesson.y + 8}, 32, 1, WHITE);
 
             // Draw start practice button
-            DrawRectangleRounded(start_practice_button, 0.15, 1000, DARKPURPLE);
-            DrawTextEx(ibm_font_text, "Start Practice", (Vector2){start_practice_button.x + 8, start_practice_button.y + 8}, 32, 1, WHITE);
+            DrawRectangleRounded(btn_start_practice, 0.15, 1000, DARKPURPLE);
+            DrawTextEx(ibm_font_text, "Start Practice", (Vector2){btn_start_practice.x + 8, btn_start_practice.y + 8}, 32, 1, WHITE);
 
-            if ((CheckCollisionPointRec(GetMousePosition(), start_lesson_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || IsKeyPressed(KEY_ENTER))
+            DrawRectangleRounded(btn_play_games, 0.15, 1000, DARKPURPLE);
+            DrawTextEx(ibm_font_text, "Play Games", (Vector2){btn_play_games.x + 8, btn_play_games.y + 8}, 32, 1, WHITE);
+
+            // When start lesson button is pressed
+            if ((CheckCollisionPointRec(GetMousePosition(), btn_start_lesson) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || IsKeyPressed(KEY_ENTER))
             {
                 int selected_user_index = get_selected_index(selected_user);
                 current_layer = LESSONS_LAYER;
@@ -294,10 +357,20 @@ int main()
                 strcat(lesson_name, lessons[current_lesson]);
                 load_lesson(lesson_name, lesson_text);
             }
-            if (CheckCollisionPointRec(GetMousePosition(), start_practice_button) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+
+            // When Start practice button is pressed
+            if (CheckCollisionPointRec(GetMousePosition(), btn_start_practice) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             {
                 current_layer = PRACTICE_LAYER;
                 load_words(lesson_text);
+                StopMusicStream(intro_music);
+            }
+
+            // When play games button is clicked
+            if (CheckCollisionPointRec(GetMousePosition(), btn_play_games) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                current_layer = GAME_MENU;
+                StopMusicStream(intro_music);
             }
         }
 
@@ -392,8 +465,10 @@ int main()
                 if (current_layer == LESSONS_LAYER)
                     load_lesson(lesson_name, lesson_text);
                 else
+                {
+                    reset_lesson_text(lesson_text);
                     load_words(lesson_text);
-
+                }
                 reset_validations(letters_state, strlen(lesson_text[current_line_number]));
             }
 
@@ -441,6 +516,169 @@ int main()
                     save_user_data(current_user, is_trainer_completed ? 0 : current_lesson + 1, get_accuracy(correct_keystrokes, total_keystrokes), get_wpm(correct_keystrokes + incorrect_keystrokes, end_time - start_time));
             }
         }
+
+        if (current_layer == GAME_MENU)
+        {
+            print_games_menu(font_big, ibm_font_text, stack_png, duck_sprite, duck_frame, clouds_sprite, clouds_frame, &current_layer);
+        }
+
+        // if (current_layer == TYPING_STACK)
+        // {
+        //     DrawTextEx(ibm_font_title, "HEHE STACK", (Vector2){10, 10}, ibm_font_title.baseSize, 1, DARKGRAY);
+        // }
+
+        if (current_layer == TYPING_FLAPPY)
+        {
+            if (!game_running && !game_over)
+            {
+                flappy_score = 0;
+                current_word_index = 0;
+                current_letter_index = 0;
+                strcpy(current_word, flappy_words[current_word_index]);
+                game_running = true;
+                duck_y_position = 80;
+                game_speed = 0.2f;
+                sound_not_played = true;
+                for (i = 0; i < strlen(current_word); i++)
+                {
+                    current_word_states[i] = false;
+                }
+            }
+
+            // Draw scrolling background
+            DrawTextureRec(background, background_frame, (Vector2){0, 0}, WHITE);
+            if (!game_over && game_running)
+            {
+                background_frame.x += 0.5f;
+                if (background_frame.x > background.width - background_frame.width - 10)
+                {
+                    background_frame.x = 0.0f;
+                }
+            }
+
+            // Draw Score
+            char score_string[40];
+            sprintf(score_string, "Score: %d", flappy_score);
+            DrawTextEx(ibm_font_text, score_string, (Vector2){16, 58}, 32, 1, BLACK);
+
+            // Draw back button
+            DrawRectangle(8, 8, 80, 40, DARKPURPLE);
+            DrawTextEx(ibm_font_text, "Back", (Vector2){16, 12}, 32, 1, WHITE);
+            if (CheckCollisionPointRec(GetMousePosition(), (Rectangle){8, 8, 80, 40}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+            {
+                current_layer = GAME_MENU;
+                game_running = false;
+            }
+
+            // Draw bird with changing frames
+            DrawTextureRec(duck_sprite, duck_frame, (Vector2){40, duck_y_position}, WHITE);
+            if (game_running)
+            {
+                frame_flag += 1;
+                if (frame_flag >= 60 / frame_speed)
+                {
+                    frame_flag = 0;
+                    duck_current_frame += 1;
+                    if (duck_current_frame > 3)
+                        duck_current_frame = 0;
+
+                    duck_frame.x = duck_current_frame * duck_frame.width;
+                }
+
+                duck_y_position += game_speed;
+            }
+
+            if (game_running)
+            {
+                int x = width / 2 - strlen(current_word) * (single_character_width)-16;
+                for (i = 0; i < strlen(current_word); i++)
+                {
+                    char letter = current_word[i];
+                    char *ptr = malloc(2 * sizeof(char));
+                    ptr[0] = letter;
+                    ptr[1] = '\0';
+
+                    DrawRectangle(x + i * single_character_width + 16 + i * 16, 40, single_character_width + 8, single_character_height + 8, (Color){250, 250, 250, current_word_states[i] ? 150 : 255});
+                    DrawTextEx(ibm_font_text, ptr, (Vector2){x + i * single_character_width + 16 + i * 16 + 4, 40 + 4}, 32, 1, BLACK);
+                }
+
+                if ((key = GetCharPressed()) != 0)
+                {
+                    if (key == current_word[current_letter_index])
+                    {
+                        if (duck_y_position > 80 + 20)
+                        {
+                            duck_y_position -= 20;
+                        }
+
+                        current_word_states[current_letter_index] = true;
+                        current_letter_index += 1;
+
+                        flappy_score += 1;
+
+                        if (current_word[current_letter_index] == '\0')
+                        {
+                            current_letter_index = 0;
+                            current_word_index += 1;
+                            strcpy(current_word, flappy_words[current_word_index]);
+                            for (i = 0; i < strlen(current_word); i++)
+                            {
+                                current_word_states[i] = false;
+                                game_speed += 0.005;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (flappy_score > 0)
+                            flappy_score -= 1;
+                    }
+                }
+            }
+
+            // Check if game is over or not
+            if (duck_y_position > height - duck_frame.height - 100)
+            {
+                game_over = true;
+                game_running = false;
+            }
+
+            // Draw game over display
+            if (game_over)
+            {
+                DrawRectangleRounded((Rectangle){width / 2 - 150, height / 2 - 100, 300, 200}, 0.1f, 1000, WHITE);
+                DrawTextEx(ibm_font_title, "GAME OVER", (Vector2){width / 2 - 150 + 70, height / 2 - 100 + 16}, 36, 1, BLACK);
+
+                DrawRectangleRounded((Rectangle){width / 2 - 70, height / 2 - 20, 140, 40}, 0.1f, 1000, DARKPURPLE);
+                DrawTextEx(ibm_font_text, "Restart", (Vector2){width / 2 - 70 + 16, height / 2 - 20 + 4}, 32, 1, WHITE);
+
+                if (CheckCollisionPointRec(GetMousePosition(), (Rectangle){width / 2 - 70, height / 2 - 20, 140, 40}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    game_over = false;
+                    game_running = false;
+                }
+            }
+
+            // Play game music
+            if (game_running)
+            {
+                PlayMusicStream(music);
+                UpdateMusicStream(music);
+            }
+
+            // Play game over music
+            if (game_over && sound_not_played)
+            {
+                sound_not_played = false;
+                PlaySound(game_over_sound);
+            }
+        }
+
+        // if (current_layer == TYPING_POPUP)
+        // {
+        //     DrawTextEx(ibm_font_title, "HEHE popup", (Vector2){10, 10}, ibm_font_title.baseSize, 1, DARKGRAY);
+        // }
+
         EndDrawing();
     }
     UnloadMusicStream(intro_music);
@@ -450,4 +688,61 @@ int main()
     UnloadTexture(keyboard);
     CloseWindow();
     return 0;
+}
+
+void print_games_menu(Font title_font, Font text_font, Texture2D stack_png, Texture2D duck_sprite, Rectangle duck_frame, Texture2D clouds_sprite, Rectangle clouds_frame, int *current_layer)
+{
+    ClearBackground(WHITE);
+    DrawTextEx(title_font, "Games", (Vector2){width / 2 - 40, 20}, title_font.baseSize, 1, DARKGRAY);
+
+    DrawRectangle(8, 8, 80, 40, DARKPURPLE);
+    DrawTextEx(text_font, "Back", (Vector2){16, 12}, 32, 1, WHITE);
+    if (CheckCollisionPointRec(GetMousePosition(), (Rectangle){8, 8, 80, 40}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    {
+        *current_layer = MENU_LAYER;
+    }
+
+    // First game tile
+    Rectangle box;
+    // box.height = 200;
+    // box.width = 200;
+    // box.x = 56;
+    // box.y = (float)height / 2 - (float)box.height / 2 + 30;
+    // DrawRectangleRounded(box, 0.05, 1000, (Color){240, 240, 240, 255});
+    // DrawTextEx(text_font, "Typing stack", (Vector2){box.x + 8, box.y + 10}, text_font.baseSize, 1, DARKGRAY);
+    // DrawTexture(stack_png, box.x + 40, box.y + 50, WHITE);
+
+    // if (CheckCollisionPointRec(GetMousePosition(), box) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    // {
+    //     *current_layer = TYPING_STACK;
+    // }
+
+    // Second game tile
+    box.width = 240;
+    box.height = 240;
+    box.x = 200 + 56 * 2;
+    box.y = (float)height / 2 - (float)box.height / 2 + 30;
+    DrawRectangleRounded(box, 0.05, 1000, (Color){240, 240, 240, 255});
+    DrawTextEx(text_font, "Typing bird", (Vector2){box.x + 36, box.y + 10}, text_font.baseSize, 1, DARKGRAY);
+    DrawTextureRec(duck_sprite, duck_frame, (Vector2){box.x + 50, box.y + 80}, WHITE);
+
+    if (CheckCollisionPointRec(GetMousePosition(), box) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    {
+        *current_layer = TYPING_FLAPPY;
+    }
+
+    // Popup game tile
+    // box.height = 200;
+    // box.width = 200;
+    // box.x = 200 + 240 + 56 * 3;
+    // box.y = (float)height / 2 - (float)box.height / 2 + 30;
+    // DrawRectangleRounded(box, 0.05, 1000, (Color){240, 240, 240, 255});
+    // DrawTextEx(text_font, "Typing Popup", (Vector2){box.x + 8, box.y + 10}, text_font.baseSize, 1, DARKGRAY);
+    // DrawTextureRec(clouds_sprite, clouds_frame, (Vector2){box.x + clouds_frame.width / 4 - 8, box.y + 60}, WHITE);
+    // DrawTextEx(text_font, "type", (Vector2){box.x + 74, box.y + 120}, text_font.baseSize, 1, DARKGRAY);
+
+    // if (CheckCollisionPointRec(GetMousePosition(), box) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    // {
+    //     *current_layer = TYPING_POPUP;
+    // }
 }
